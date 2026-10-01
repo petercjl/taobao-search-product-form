@@ -1,0 +1,3 @@
+# Query: Which product propositions merit further white-label research?
+
+Read [white-label-evidence](../topics/white-label-evidence.md) after a product-keyed compare artifact with whole-product style prototypes exists. Ask which complete product styles have a credible reason to investigate, how structure, design and use-task cuts affect that reading, what competes with the explanation, and which missing fact would change the research order. Return cards bound to the current compare-artifact hash and a human-readable review, then return to Main Line Step 6. Image labels remain observations; do not alter them to favor a candidate.

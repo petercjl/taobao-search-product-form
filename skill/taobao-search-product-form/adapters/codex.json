@@ -1,0 +1,139 @@
+{
+  "schema": "portable-skill-adapter",
+  "schema_version": "1.0.0",
+  "platform": "codex",
+  "mappings": [
+    {
+      "capability_id": "product.workflow.ledger",
+      "implementation": {"kind": "bundled-script", "discovery": "Resolve scripts/workflow_ledger.py relative to the installed Skill; Python standard library only.", "execution": "Run init once, then show and record at stage boundaries.", "normalization": "Read the per-run ledger.json and its stage records."},
+      "features": ["new_ledger_only", "stage_state_record", "existing_artifact_verification", "recoverable_update"],
+      "status": "implemented",
+      "permissions": ["Local run-directory write"],
+      "normalization": "Return ledger and backup paths with the current stage status."
+    },
+    {
+      "capability_id": "product.search.clean",
+      "implementation": {"kind": "bundled-cli-script", "discovery": "Resolve the installed taobao-search-form CLI and run doctor --json; its npm dependency supplies ExcelJS.", "execution": "Run taobao-search-form script clean_search_export.mjs SOURCE.xlsx OUTPUT.xlsx; inspect its JSON counts and compare both saved sheets with the source.", "normalization": "Return the two sheet names, cleaned workbook path, and source/retained/excluded row counts."},
+      "features": ["xlsx_read", "first_natural_id_only", "all_ad_appearances", "source_order_preserved", "xlsx_write", "new_output_only"],
+      "status": "tested",
+      "tested_date": "2026-10-01",
+      "evidence": ["Package test fixture confirms first natural record retained, later same-ID natural record excluded, and both same-ID advertising appearances retained; existing output is refused.", "The 2,516-row flat-pan workbook produced 1,750 first-seen natural IDs and 211 advertising rows, matching the previously audited population counts; ExcelJS writer was exercised through the packaged CLI."],
+      "permissions": ["Local source read", "New local workbook write"],
+      "normalization": "Return workbook artifact and quality counts; fail for unknown placement or blank ID."
+    },
+    {
+      "capability_id": "product.search.advertiser-analysis",
+      "implementation": {"kind": "bundled-script", "discovery": "Resolve scripts/analyze_advertisers.py relative to the installed Skill; use a Python with pandas and an Excel reader.", "execution": "Run with --input CLEANED.xlsx --output NEW.json and optional --price-bands; inspect shop, product, natural-payment and price reconciliations, then write the named business conclusions separately.", "normalization": "Return JSON path, shop and product layout, price bands, natural-payment evidence, and quality status."},
+      "features": ["xlsx_read", "three_grains", "product_id_natural_join", "exact_shop_name_join", "natural_payment_traction", "shop_product_layout", "configurable_price_bands", "json_detail_export", "new_output_only"],
+      "status": "tested",
+      "tested_date": "2026-09-27",
+      "evidence": ["Cleaned flat-pan workbook yielded 211 advertising appearances, 106 unique advertised products, 75 exact shop names, and 70 product-ID overlaps with natural positions; JSON totals reconciled with the two source sheets.", "Merchant-layout and price-band extension is validated on the current flat-pan workbook with natural-row payment-count cross-checks."],
+      "permissions": ["Local cleaned workbook read", "New local JSON write"],
+      "normalization": "Return detail JSON, merchant layout, natural-row payment-count evidence, price bands, and quality counts; fail for invalid grain, missing identity, or conflicting ad product-to-shop mappings."
+    },
+    {
+      "capability_id": "product.search.title-roots",
+      "implementation": {"kind": "bundled-script", "discovery": "Resolve scripts/analyze_title_roots.py and references/title-lexicon.json relative to the installed Skill; discover Python with pandas, an XLSX reader and a jieba-compatible module.", "execution": "Run --input CLEANED.xlsx --output-dir NEW_DIR with optional --project-lexicon REVIEWED.json; inspect the four JSON files and write the interpretation separately.", "normalization": "Return the product/root detail, summary, lexicon snapshot, candidate terms, and quality counts."},
+      "features": ["xlsx_read", "natural_only", "protected_phrase_segmentation", "project_lexicon_merge", "run_lexicon_snapshot", "candidate_review_queue", "product_root_evidence", "root_shop_price_payment_statistics", "new_output_only"],
+      "status": "tested",
+      "tested_date": "2026-09-27",
+      "evidence": ["Cleaned flat-pan sample: 1,750 unique natural-position product IDs, 19,569 product-root rows, 1,748 products with a mapped root; product identity, title, price, payment and shop all reconciled to the source sheet.", "Dictionary snapshot recorded jieba-py 0.46.12 and source hashes; unit tests passed for protected phrases, aliases, repeat counts, size boundaries, duplicate IDs and ad exclusion."],
+      "permissions": ["Local cleaned workbook read", "Optional reviewed lexicon read", "New local JSON directory write"],
+      "normalization": "Return four JSON artifacts and counts; fail for missing dependency, duplicate natural ID, lexicon conflict, or existing output directory."
+    },
+    {
+      "capability_id": "product.search.geography",
+      "implementation": {"kind": "bundled-script", "discovery": "Resolve scripts/analyze_geography.py relative to the installed Skill; discover Python with pandas and an XLSX reader.", "execution": "Run --input CLEANED.xlsx --output-dir NEW_DIR and optional --title-roots PRODUCT_ROOTS.json; inspect the two JSON outputs, then write the interpretation separately.", "normalization": "Return geography detail, region and root-region summaries, advertising-location context, and quality counts."},
+      "features": ["xlsx_read", "natural_product_grain", "shop_address_grain", "address_normalization", "optional_title_root_hash_join", "regional_price_payment_statistics", "advertising_appearance_separation", "json_detail_and_summary", "new_output_only"],
+      "status": "tested",
+      "tested_date": "2026-09-27",
+      "evidence": ["Cleaned flat-pan workbook: 1,750 unique natural products, 662 exact shops, 739 shop-address pairs, 52 multi-address shops, and 211 ad appearances from 106 distinct ad products; all regional product/shop and ad appearance/product counts independently reconciled to source sheets.", "Approved title-root JSON joined by exact workbook hash and product-title population; standalone branch, source-mismatch validation, duplicate natural IDs, address parsing, and existing-output refusal were exercised."],
+      "permissions": ["Local cleaned workbook read", "Optional approved title-root JSON read", "New local JSON directory write"],
+      "normalization": "Return two JSON artifacts and counts; fail for duplicate natural IDs, invalid placement, mismatched root source, or existing output directory."
+    },
+    {
+      "capability_id": "product.search.price-bands",
+      "implementation": {"kind": "bundled-script", "discovery": "Resolve scripts/analyze_price_bands.py relative to the installed Skill; discover Python with pandas, numpy and an XLSX reader.", "execution": "Run --input CLEANED.xlsx --output-dir NEW_DIR; inspect candidate models, sensitivity, bootstrap intervals and all count reconciliations, then write the interpretation separately.", "normalization": "Return two JSON artifacts, selected price boundaries, band comparisons and quality counts."},
+      "features": ["xlsx_read", "all_natural_products", "log_price_jenks", "sample_selected_band_count", "bootstrap_stability", "advertising_context_separate", "json_detail_and_summary", "new_output_only"],
+      "status": "tested",
+      "tested_date": "2026-09-27",
+      "evidence": ["Flat-pan cleaned workbook: all 1,750 unique natural products assigned once; 211 advertising appearances and 106 unique advertised IDs mapped separately; five sample-selected bands with 30 reproducible bootstrap resamples.", "Unit cases covered shifted-price boundaries, repeated-price grouping, duplicate natural IDs, invalid prices and penalty validation."],
+      "permissions": ["Local cleaned workbook read", "New local JSON directory write"],
+      "normalization": "Return detail and summary JSON with source hash, all product assignments, fitted boundaries, candidate-model evidence and bootstrap stability."
+    },
+    {
+      "capability_id": "product.search.prepare",
+      "implementation": {"kind": "bundled-script", "discovery": "Resolve scripts relative to the installed Skill and a Python with pandas and Pillow.", "execution": "Run scripts/prepare.py when the current input and selected modules need its normalization and image cache.", "normalization": "Read manifest.json as the canonical machine-readable output of this implementation."},
+      "features": ["xlsx_read", "product_id_deduplication", "placement_preservation", "safe_image_fetch", "new_output_only"],
+      "status": "implemented",
+      "permissions": ["Local input read", "Local output write", "HTTPS image read"],
+      "normalization": "Return manifest, contact-sheet paths and fetch coverage."
+    },
+    {
+      "capability_id": "product.image.inspect",
+      "implementation": {"kind": "agent-native", "discovery": "Use the host's advertised local-image viewing capability.", "execution": "Inspect prepared contact sheets and source images; write product-ID keyed visual labels with image-path evidence.", "normalization": "Persist the ledger schema documented in SKILL.md."},
+      "features": ["local_image_view", "source_image_zoom", "one_observation_per_image", "multi_facet_observation", "open_candidate_labels", "uncertainty_preservation"],
+      "status": "tested",
+      "tested_date": "2026-09-27",
+      "evidence": ["Current Codex session inspected two 12-product contact sheets and wrote 24 multi-facet product-ID observations; exact image hash and batch were bound and checked. A preliminary legacy contact sheet was also viewed, so strict one-image-read-once and parallel semantic workers were not validated."],
+      "permissions": ["Local image read"],
+      "normalization": "Default to serial local-image inspection with per-batch checkpoints; return product-ID keyed raw multi-facet observations, actual semantic worker limit and coverage. Do not infer concurrency from parallel fetching."
+    },
+    {
+      "capability_id": "product.image.plan-reduce",
+      "implementation": {"kind": "bundled-script", "discovery": "Resolve scripts/visual_form_pipeline.py relative to the installed Skill; use Python 3 with Pillow.", "execution": "Run plan, bind and reduce with new output paths; inspect summary and unresolved candidates.", "normalization": "Read visual_batch_plan.json, visual_form_assignments.json and visual_form_summary.json."},
+      "features": ["image_hash_provenance", "disjoint_batches", "contact_sheet_export", "observation_binding", "one_record_per_product_validation", "versioned_alias_registry", "unresolved_label_reporting", "new_output_only"],
+      "status": "tested",
+      "tested_date": "2026-09-27",
+      "evidence": ["Flat-pan pilot: 24 distinct natural-position image IDs planned into two batches; 24 hash-bound observations reduced from seven candidate labels to four canonical forms, with one uncertain item preserved."],
+      "permissions": ["Prepared local image read", "New local JSON and contact-sheet write"],
+      "normalization": "Return explicit batch membership, all per-product assignments, registry version, unresolved candidates and population coverage."
+    },
+    {
+      "capability_id": "product.image.three-axis-compile",
+      "implementation": {"kind": "bundled-script", "discovery": "Resolve scripts/compile_visual_selection.py relative to the installed Skill; use Python 3.", "execution": "Compile a planned image batch, product-ID keyed three-axis observations and a versioned registry into a new directory; inspect unresolved records and coverage.", "normalization": "Read product_labels.json, label_summary.json and raw_observations.json."},
+      "features": ["three_independent_axes", "image_hash_provenance", "product_side_delta", "audience_evidence_tier", "open_candidate_labels", "versioned_alias_registry", "unresolved_label_reporting", "one_record_per_product_validation", "new_output_only"],
+      "status": "tested",
+      "tested_date": "2026-09-27",
+      "evidence": ["Flat-pan 50-product pilot: all 50 planned IDs compiled with independent form, style and task-audience assignments; two unresolved form boundaries and 38 unclassified task-audience cases were preserved. Unit tests covered successful compilation, insufficient style evidence and refusal to overwrite existing output."],
+      "permissions": ["Local planned observations read", "New local JSON directory write"],
+      "normalization": "Return one hash-bound record per planned product, three independent canonical axes, evidence tiers, unresolved candidates and complete counts."
+    },
+    {
+      "capability_id": "product.image.parallel-observe",
+      "implementation": {"kind": "agent-native", "discovery": "Check the active host's advertised parallel visual-analysis worker capability at runtime.", "execution": "Assign each planned batch to one independent semantic worker with a bounded worker limit; collect one result per product and preserve execution evidence.", "normalization": "Return actual semantic worker count and product-ID keyed batch observations; image-download concurrency does not count."},
+      "features": [],
+      "status": "unresolved",
+      "permissions": ["Local image read; possible metered vision usage"],
+      "normalization": "When parallelism is unverified, use the tested serial image-inspection path and report actual worker count; parallelism is optional acceleration, not a full-run prerequisite."
+    },
+    {
+      "capability_id": "product.opportunity.evidence-join",
+      "implementation": {"kind": "bundled-script", "discovery": "Resolve scripts/assemble_opportunity_evidence.py relative to the installed Skill; Python 3 standard library only.", "execution": "Run with five approved JSON inputs and a new output path; inspect the source hash, population and candidate reconciliation before composing cards.", "normalization": "Read the product and candidate evidence arrays plus their population and grain notes."},
+      "features": ["source_hash_reconciliation", "natural_product_id_join", "uncertainty_preservation", "advertising_grain_separation", "merchant_line_context", "overlapping_candidate_groups", "new_output_only"],
+      "status": "tested",
+      "tested_date": "2026-09-28",
+      "evidence": ["Flat-pan main run joined 1,750 natural products with four same-hash numeric artifacts and a 1,750-ID visual observation set; 1,611 tagged and 139 uncertain records remained distinct; advertising reconciled to 211 appearances and 106 IDs."],
+      "permissions": ["Local stage-artifact read", "New local JSON write"],
+      "normalization": "Return evidence JSON, product/candidate counts and explicit caveats; semantic opportunity-card interpretation remains Agent judgment."
+    },
+    {
+      "capability_id": "product.opportunity.card-validate",
+      "implementation": {"kind": "bundled-script", "discovery": "Resolve scripts/validate_opportunity_cards.py relative to the installed Skill; Python 3 standard library only.", "execution": "Run with cards and joined evidence JSON, then independently audit numerical claims and business inferences.", "normalization": "Return card count and resolved-reference success."},
+      "features": ["required_card_fields", "candidate_reference_resolution", "member_product_reference", "research_order_uniqueness", "no_composite_entry_score"],
+      "status": "tested",
+      "tested_date": "2026-09-28",
+      "evidence": ["Four first-run flat-pan cards passed structural/reference validation; unit tests rejected broken candidate fields, foreign product IDs and opaque scores."],
+      "permissions": ["Local JSON read"],
+      "normalization": "Return read-only validation result; do not infer that commercial claims passed semantic review."
+    },
+    {
+      "capability_id": "product.report.html",
+      "implementation": {"kind": "nested-skill-and-stable-cli", "discovery": "Resolve exact compact-commerce-ui Skill from the current catalog and discover commerce-ui from PATH.", "execution": "Load the current compact-commerce-ui Skill, inspect the live template contract, build a ViewModel, render and validate with commerce-ui.", "normalization": "Return ViewModel and standalone HTML paths plus validation results."},
+      "features": ["versioned_viewmodel", "embedded_images", "structured_conclusions", "standalone_html", "validation"],
+      "status": "implemented",
+      "permissions": ["Local report write"],
+      "normalization": "Use commerce-ui JSON results and inspect the rendered artifact."
+    }
+  ]
+}

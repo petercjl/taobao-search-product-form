@@ -1,0 +1,43 @@
+# Advertiser analysis method
+
+Source class: U, confirmed by the user for this Skill's placement module. Apply the method to each input without carrying over sample-specific names, counts, thresholds, or conclusions.
+
+## Question and grains
+
+The module identifies **observed advertising-position participants** in one search export. Keep three populations distinct:
+
+1. An advertising appearance is one row in the advertising sheet. Repeated product IDs remain repeated appearances.
+2. An advertised product is one unique `商品ID` in the advertising sheet.
+3. An advertiser shop is one verified operating-shop name in the advertising sheet. Preserve each row's original `店铺名称` as its display label. A known platform display label such as `百亿补贴品牌优选` can be attributed to the actual shop when the same product ID also has an actual-shop display name and every `掌柜名` for that ID matches that actual shop. Keep the source label, resolution basis, and count of affected appearances in the evidence. Other multi-name identities stay unresolved for review; equal names do not verify a legal entity.
+
+Use the clean natural sheet as a comparison population. Join product overlap by `商品ID`; compare shops by the resolved operating-shop name when the display-label rule is corroborated, otherwise by exact `店铺名称`. Keep source display labels and any remaining cross-placement mismatch visible. Summarize shop type and similar supplied attributes as labels, not proof that a seller owns a brand.
+
+## Interpretive questions
+
+- Breadth and concentration: how many shops and unique products occupy advertising positions? How do shop-level product counts and appearance counts distribute? A sorted full table and cumulative shares let the reader choose the breadth cutoff; do not embed a fixed opportunity threshold.
+- Promotion pattern: is an observed shop represented by one product or several? Are particular products repeated in the captured advertising rows? Show both product counts and appearance counts, because one is assortment breadth and the other is only observed placement frequency.
+- Natural-position relationship: which advertised products also have a natural row, and which appear only in advertising rows in this export? Do the same exact-name check for shops. This is coexistence in a snapshot, not causal evidence that advertising improved or compensated for natural position.
+- Shop-type structure: compare the advertising and natural populations at the **same grain** (shop with shop, unique product with unique product). State the actual field label; do not convert it into a brand/white-label classification without independent evidence.
+- Advertiser merchandise layout: for each prominent advertiser in the observed ad-appearance ranking, show its advertised product IDs beside the distinct natural-position products under the same operating-shop name that it did not advertise. Compare the shop's visible natural-product count and `付款人数` sum with the natural-position records of the advertised IDs. A shop's established natural-position traction and the traction of the exact products it advertises answer different questions. Transfer a same-ID appearance into a same-shop subtotal only when its operating-shop identity is corroborated; otherwise keep the product match separate.
+- Product traction: read `付款人数` from the first-seen natural row for each product ID, never from an advertising row. For a shop, report the number of natural products alongside the sum and median of their displayed `付款人数`, because a sum grows with assortment breadth. A product with no natural row has unknown natural-position traction, not zero. The time window and whether the same payer bought several products are unspecified, so a sum is only a sum of displayed product values.
+- Price positioning: profile unique advertised products using the first advertising appearance's `现价`; preserve any alternate observed ad prices as a quality flag. Choose price-band boundaries after inspecting the current distribution, record those boundaries with the run, and apply the same intervals to the natural comparison population. Compare advertised and non-advertised products within advertiser shops as well as the full search export. The export may contain off-target listings until visual eligibility is checked, so describe this as a search-result price pattern.
+
+## Representative-shop selection and interpretation
+
+Select cases from the full advertiser-shop table, rather than choosing familiar brands in advance. Start with shops prominent by observed ad appearances or unique advertised products, then add contrasting configurations when available: advertised listings that are already prominent in natural-position payment counts; advertised listings that differ from a shop's stronger non-advertised natural listings; a narrow cluster of similar prices versus a broad price ladder; an ad-heavy shop with little natural-position coverage; and a shop whose advertised listings may fall outside the target product. Explain why each case was selected. The case count follows the variety of observed configurations, not a fixed quota. A shop with incomplete same-name natural coverage can illustrate visibility limits but not a weak-sales verdict.
+
+For each selected shop, build a compact product roster from `ad_products` and `natural_products_of_advertiser_shops`: identifiable product title cue and ID, observed ad price, ad-appearance count, natural-row `付款人数` when present, and whether the product is advertised or only in the same-name natural results. Include every advertised product when the assortment is small; show the strongest or most contrasting non-advertised natural products and state the remaining count. Compare like with like before interpreting prices or payment counts. Titles identify listings and claimed material/function, but do not prove visual form, material authenticity, or consumer need.
+
+Write three distinct layers for each case:
+
+1. **Observed layout:** what the shop puts into advertising positions; which of those products also appear naturally; which visible natural products it leaves unadvertised; where the prices and displayed payment counts sit. Describe the observable configuration (for example, promoting proven products, covering several price tiers, or advertising other products while strong natural listings remain unadvertised).
+2. **Strategy reading:** state the narrow inference this configuration permits and at least one alternative explanation or unknown when intent is material. A snapshot can show product allocation, not budget, objective, conversion, ROI, or whether the placement was the seller's deliberate long-term plan. Repeated ad rows indicate observed frequency only.
+3. **White-label implication:** translate that case into an actionable next research question or competitive boundary. Identify the exact listing/form/price comparison to inspect next, and the evidence needed before entering. An implication must follow from the case; generic exhortations or product ideas unsupported by the export add no value.
+
+Across cases, compare the observable advertising configurations and explain what they imply for the research sequence. Distinguish the areas already occupied by sellers with visible payment traction from higher-priced or ad-only listings whose demand remains unverified. A candidate opportunity needs later image-based product-form classification, reviews/consumer problems, brand dependence and supply economics; this placement module only tells the investigator where to look.
+
+## Conclusion artifact contract
+
+Write an evidence-backed narrative for later HTML use: an upfront cross-shop finding; a transparent case-selection note; a concise comparison table; substantive individual shop profiles using the three layers above; and a final cross-shop synthesis with prioritized next checks. Keep method and limitations near the relevant claims. Each case states its relevant denominator and can be reconstructed from the JSON's `advertiser_shops`, `ad_products`, `natural_products_of_advertiser_shops`, and `price_bands`. Preserve unavailable natural payments as unknown, not zero. The reader should understand which specific goods each typical shop appears to promote, how that differs from its visible unadvertised assortment, and what the contrast means for white-label research without opening the JSON.
+
+An advertising-position row does not measure spend, paid impressions, clicks, ROI or campaign duration. A single search export is not a market-wide census or time trend. Product-form and white-label entry conclusions require later image and product analysis.

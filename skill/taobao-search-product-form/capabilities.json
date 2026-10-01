@@ -1,0 +1,148 @@
+{
+  "schema": "portable-skill-capabilities",
+  "schema_version": "1.0.0",
+  "skill": "taobao-search-product-form",
+  "target_platforms": ["codex"],
+  "capabilities": [
+    {
+      "id": "product.workflow.ledger",
+      "purpose": "Create and update a recoverable per-run record of stage state, strategy and real artifact paths",
+      "required": true,
+      "required_features": ["new_ledger_only", "stage_state_record", "existing_artifact_verification", "recoverable_update"],
+      "input_fields": ["run_directory", "mode", "input_workbook", "stage_transition"],
+      "output_fields": ["ledger_path", "stage_state", "backup_path"],
+      "side_effects": {"external_mutation": false, "may_cost_money": false, "authorization": "Write only the selected local run directory."},
+      "errors": ["INPUT_INVALID", "LEDGER_EXISTS", "ARTIFACT_MISSING", "TRANSITION_INVALID"]
+    },
+    {
+      "id": "product.search.clean",
+      "purpose": "Split a supplied search workbook into first-seen natural products and all advertising appearances",
+      "required": true,
+      "required_features": ["xlsx_read", "first_natural_id_only", "all_ad_appearances", "source_order_preserved", "xlsx_write", "new_output_only"],
+      "input_fields": ["source_workbook", "output_workbook"],
+      "output_fields": ["natural_table", "advertising_table", "quality_counts"],
+      "side_effects": {"external_mutation": false, "may_cost_money": false, "authorization": "Read the supplied workbook and create one new local cleaned workbook."},
+      "errors": ["INPUT_INVALID", "DEPENDENCY_UNAVAILABLE", "OUTPUT_EXISTS", "OUTPUT_CONTRACT_FAILED"]
+    },
+    {
+      "id": "product.search.advertiser-analysis",
+      "purpose": "Measure advertiser shops, promoted versus unpromoted product layout, natural-position payment-count evidence, and price positioning from a cleaned search workbook",
+      "required": false,
+      "required_features": ["xlsx_read", "three_grains", "product_id_natural_join", "exact_shop_name_join", "natural_payment_traction", "shop_product_layout", "configurable_price_bands", "json_detail_export", "new_output_only"],
+      "input_fields": ["cleaned_workbook", "output_json", "optional_price_band_boundaries"],
+      "output_fields": ["counts", "advertiser_shops", "ad_products", "natural_products_of_advertiser_shops", "price_bands", "ad_appearance_records", "quality"],
+      "side_effects": {"external_mutation": false, "may_cost_money": false, "authorization": "Read the selected local cleaned workbook and create one new local JSON file."},
+      "errors": ["INPUT_INVALID", "DEPENDENCY_UNAVAILABLE", "OUTPUT_EXISTS", "OUTPUT_CONTRACT_FAILED"]
+    },
+    {
+      "id": "product.search.title-roots",
+      "purpose": "Create traceable natural-position product-to-title-root evidence with a reproducible jieba-compatible lexicon snapshot",
+      "required": false,
+      "required_features": ["xlsx_read", "natural_only", "protected_phrase_segmentation", "project_lexicon_merge", "run_lexicon_snapshot", "candidate_review_queue", "product_root_evidence", "root_shop_price_payment_statistics", "new_output_only"],
+      "input_fields": ["cleaned_workbook", "new_output_directory", "optional_reviewed_project_lexicon"],
+      "output_fields": ["product_roots", "root_summary", "lexicon_snapshot", "lexicon_candidates", "quality"],
+      "side_effects": {"external_mutation": false, "may_cost_money": false, "authorization": "Read the selected local cleaned workbook and optional reviewed lexicon; create only a new local result directory."},
+      "errors": ["INPUT_INVALID", "DEPENDENCY_UNAVAILABLE", "LEXICON_CONFLICT", "OUTPUT_EXISTS", "OUTPUT_CONTRACT_FAILED"]
+    },
+    {
+      "id": "product.search.geography",
+      "purpose": "Analyze listing-address distribution, distinct merchants, title-root propositions, price/payment evidence and separate advertising presence from a cleaned search workbook",
+      "required": false,
+      "required_features": ["xlsx_read", "natural_product_grain", "shop_address_grain", "address_normalization", "optional_title_root_hash_join", "regional_price_payment_statistics", "advertising_appearance_separation", "json_detail_and_summary", "new_output_only"],
+      "input_fields": ["cleaned_workbook", "new_output_directory", "optional_title_root_json"],
+      "output_fields": ["geography_detail", "geography_summary", "quality"],
+      "side_effects": {"external_mutation": false, "may_cost_money": false, "authorization": "Read the selected local cleaned workbook and optional approved title-root artifact; create only a new local result directory."},
+      "errors": ["INPUT_INVALID", "DEPENDENCY_UNAVAILABLE", "SOURCE_MISMATCH", "OUTPUT_EXISTS", "OUTPUT_CONTRACT_FAILED"]
+    },
+    {
+      "id": "product.search.price-bands",
+      "purpose": "Fit run-specific price bands to all cleaned natural-position products and compare advertising positions without letting them affect the fit",
+      "required": false,
+      "required_features": ["xlsx_read", "all_natural_products", "log_price_jenks", "sample_selected_band_count", "bootstrap_stability", "advertising_context_separate", "json_detail_and_summary", "new_output_only"],
+      "input_fields": ["cleaned_workbook", "new_output_directory", "optional_complexity_penalty"],
+      "output_fields": ["price_band_detail", "price_band_summary", "quality"],
+      "side_effects": {"external_mutation": false, "may_cost_money": false, "authorization": "Read the selected local cleaned workbook and create only a new local result directory."},
+      "errors": ["INPUT_INVALID", "DEPENDENCY_UNAVAILABLE", "SAMPLE_TOO_LARGE_FOR_EXACT_FIT", "OUTPUT_EXISTS", "OUTPUT_CONTRACT_FAILED"]
+    },
+    {
+      "id": "product.search.prepare",
+      "purpose": "Read the supplied workbook, normalize product placements and retrieve source images into a new local analysis directory",
+      "required": false,
+      "required_features": ["xlsx_read", "product_id_deduplication", "placement_preservation", "safe_image_fetch", "new_output_only"],
+      "input_fields": ["workbook", "search_term", "output_directory", "scope"],
+      "output_fields": ["manifest", "images", "contact_sheets", "fetch_coverage"],
+      "side_effects": {"external_mutation": false, "may_cost_money": false, "authorization": "Read user-supplied workbook and public image URLs; write only a new local output directory."},
+      "errors": ["INPUT_INVALID", "DEPENDENCY_UNAVAILABLE", "IMAGE_FETCH_FAILED", "OUTPUT_EXISTS"]
+    },
+    {
+      "id": "product.image.inspect",
+      "purpose": "Make one image-grounded, multi-facet semantic observation per product and preserve open candidate labels",
+      "required": false,
+      "required_features": ["local_image_view", "source_image_zoom", "one_observation_per_image", "multi_facet_observation", "open_candidate_labels", "uncertainty_preservation"],
+      "input_fields": ["visual_batch_plan", "images", "search_intent", "optional_registry_snapshot"],
+      "output_fields": ["raw_observations", "coverage", "uncertainties", "actual_worker_limit"],
+      "side_effects": {"external_mutation": false, "may_cost_money": false, "authorization": "Inspect retrieved product images within the user-requested research scope."},
+      "errors": ["CAPABILITY_UNAVAILABLE", "IMAGE_UNREADABLE", "OUTPUT_CONTRACT_FAILED"]
+    },
+    {
+      "id": "product.image.plan-reduce",
+      "purpose": "Create disjoint visual review batches and aggregate raw candidate labels with a versioned registry without rereading images",
+      "required": false,
+      "required_features": ["image_hash_provenance", "disjoint_batches", "contact_sheet_export", "observation_binding", "one_record_per_product_validation", "versioned_alias_registry", "unresolved_label_reporting", "new_output_only"],
+      "input_fields": ["prepared_image_manifest", "observation_draft", "registry", "new_output_directory"],
+      "output_fields": ["visual_batch_plan", "contact_sheets", "raw_observations", "form_assignments", "form_summary"],
+      "side_effects": {"external_mutation": false, "may_cost_money": false, "authorization": "Read prepared local images and write only new local analysis artifacts."},
+      "errors": ["INPUT_INVALID", "IMAGE_UNREADABLE", "OUTPUT_EXISTS", "OUTPUT_CONTRACT_FAILED"]
+    },
+    {
+      "id": "product.image.three-axis-compile",
+      "purpose": "Compile image-grounded product form, product-design style and task-audience observations into independent, evidence-linked selection axes",
+      "required": false,
+      "required_features": ["three_independent_axes", "image_hash_provenance", "product_side_delta", "audience_evidence_tier", "open_candidate_labels", "versioned_alias_registry", "unresolved_label_reporting", "one_record_per_product_validation", "new_output_only"],
+      "input_fields": ["visual_batch_plan", "observation_draft", "three_axis_registry", "new_output_directory"],
+      "output_fields": ["raw_observations", "product_labels", "label_summary", "coverage", "unresolved"],
+      "side_effects": {"external_mutation": false, "may_cost_money": false, "authorization": "Read planned local image observations and write only new local analysis artifacts."},
+      "errors": ["INPUT_INVALID", "OUTPUT_EXISTS", "OUTPUT_CONTRACT_FAILED"]
+    },
+    {
+      "id": "product.image.parallel-observe",
+      "purpose": "Execute disjoint image-semantic batches concurrently with a bounded worker count and merge their raw observations",
+      "required": false,
+      "required_features": ["bounded_semantic_workers", "disjoint_product_ownership", "batch_result_collection", "actual_parallelism_evidence"],
+      "input_fields": ["visual_batch_plan", "worker_limit", "facet_questions", "optional_registry_snapshot"],
+      "output_fields": ["batch_observations", "actual_worker_limit", "execution_evidence"],
+      "side_effects": {"external_mutation": false, "may_cost_money": false, "authorization": "Inspect only the planned product images; disclose any metered image-model cost before launch."},
+      "errors": ["CAPABILITY_UNAVAILABLE", "FEATURE_UNSUPPORTED", "PROVIDER_FAILURE", "OUTPUT_CONTRACT_FAILED"]
+    },
+    {
+      "id": "product.opportunity.evidence-join",
+      "purpose": "Reconcile approved natural-product modules and form overlapping product-form, style and use-task evidence groups for opportunity cards",
+      "required": false,
+      "required_features": ["source_hash_reconciliation", "natural_product_id_join", "uncertainty_preservation", "advertising_grain_separation", "merchant_line_context", "overlapping_candidate_groups", "new_output_only"],
+      "input_fields": ["visual_labels", "price_detail", "title_roots", "geography_detail", "advertiser_detail", "new_output_path"],
+      "output_fields": ["product_evidence", "candidate_evidence", "population_quality", "source_hashes"],
+      "side_effects": {"external_mutation": false, "may_cost_money": false, "authorization": "Read selected local stage artifacts and create one new local JSON evidence file."},
+      "errors": ["INPUT_INVALID", "SOURCE_MISMATCH", "OUTPUT_EXISTS", "OUTPUT_CONTRACT_FAILED"]
+    },
+    {
+      "id": "product.opportunity.card-validate",
+      "purpose": "Check evidence-first opportunity-card structure and resolve each machine reference to a candidate field or member product",
+      "required": false,
+      "required_features": ["required_card_fields", "candidate_reference_resolution", "member_product_reference", "research_order_uniqueness", "no_composite_entry_score"],
+      "input_fields": ["opportunity_cards_json", "opportunity_evidence_json"],
+      "output_fields": ["validation_result", "card_count"],
+      "side_effects": {"external_mutation": false, "may_cost_money": false, "authorization": "Read local opportunity-card and evidence JSON only."},
+      "errors": ["INPUT_INVALID", "BROKEN_EVIDENCE_REFERENCE", "OUTPUT_CONTRACT_FAILED"]
+    },
+    {
+      "id": "product.report.html",
+      "purpose": "Render and validate a standalone, evidence-linked HTML research report through the shared commerce UI capability",
+      "required": false,
+      "required_features": ["versioned_viewmodel", "embedded_images", "structured_conclusions", "standalone_html", "validation"],
+      "input_fields": ["analysis", "visual_labels", "conclusions", "output_path"],
+      "output_fields": ["viewmodel", "html", "validation"],
+      "side_effects": {"external_mutation": false, "may_cost_money": false, "authorization": "Write new local report files only."},
+      "errors": ["DEPENDENCY_UNAVAILABLE", "CONTRACT_UNSUPPORTED", "OUTPUT_EXISTS", "OUTPUT_CONTRACT_FAILED"]
+    }
+  ]
+}

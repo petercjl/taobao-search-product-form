@@ -1,0 +1,3 @@
+# Query: Where does this search sample's visible price structure change?
+
+Use at `classify/price` after the cleaned natural/advertising workbook exists. Read [price-band analysis method](../topics/price-band-analysis-method.md). Determine boundaries from this run's eligible cleaned natural-position sample, not a retained category template. Produce complete product-band assignments, candidate-fit and stability evidence, band comparisons, and a human interpretation. Return to business-flow stage 3. Product eligibility is an upstream clean-stage decision; physical form and actual SKU transaction-price verification are separate later questions.
