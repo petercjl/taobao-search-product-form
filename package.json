@@ -1,9 +1,11 @@
 {
   "name": "@petercjl/taobao-search-product-form",
-  "version": "0.0.0-bootstrap.0",
+  "version": "0.1.0-next.0",
   "description": "Portable Taobao search-result product-form research skill and CLI",
   "type": "module",
-  "bin": {"taobao-search-form": "bin/taobao-search-form.mjs"},
+  "bin": {
+    "taobao-search-form": "bin/taobao-search-form.mjs"
+  },
   "files": [
     "README.md",
     "requirements.txt",
@@ -18,13 +20,26 @@
     "skill/taobao-search-product-form/scripts/*.py",
     "skill/taobao-search-product-form/scripts/*.mjs"
   ],
-  "engines": {"node": ">=20"},
-  "repository": {"type": "git", "url": "git+https://github.com/petercjl/taobao-search-product-form.git"},
+  "engines": {
+    "node": ">=20"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/petercjl/taobao-search-product-form.git"
+  },
   "homepage": "https://github.com/petercjl/taobao-search-product-form#readme",
-  "bugs": {"url": "https://github.com/petercjl/taobao-search-product-form/issues"},
+  "bugs": {
+    "url": "https://github.com/petercjl/taobao-search-product-form/issues"
+  },
   "license": "UNLICENSED",
-  "publishConfig": {"access": "public", "registry": "https://registry.npmjs.org/", "tag": "next"},
-  "dependencies": {"@excel.js/exceljs": "^0.9.0"},
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/",
+    "tag": "next"
+  },
+  "dependencies": {
+    "@excel.js/exceljs": "^0.9.0"
+  },
   "scripts": {
     "check": "node --check src/cli.mjs && node --check skill/taobao-search-product-form/scripts/clean_search_export.mjs",
     "test": "node --test test/*.test.mjs && node src/run-python-tests.mjs"
