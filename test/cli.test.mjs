@@ -10,11 +10,12 @@ import { install, status, update } from '../src/cli.mjs';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
 const bin = path.join(root, 'bin', 'taobao-search-form.mjs');
+const packageVersion = JSON.parse(await fs.readFile(path.join(root, 'package.json'), 'utf8')).version;
 
 test('version and source resolve to the bundled canonical Skill', () => {
   const version = spawnSync(process.execPath, [bin, 'version'], { encoding: 'utf8' });
   assert.equal(version.status, 0);
-  assert.equal(version.stdout.trim(), '0.1.0-next.0');
+  assert.equal(version.stdout.trim(), packageVersion);
   const source = spawnSync(process.execPath, [bin, 'skill', 'source', '--json'], { encoding: 'utf8' });
   assert.equal(source.status, 0);
   assert.equal(JSON.parse(source.stdout).source, path.join(root, 'skill', 'taobao-search-product-form'));

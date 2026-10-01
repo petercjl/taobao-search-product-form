@@ -1,6 +1,6 @@
 {
   "name": "@petercjl/taobao-search-product-form",
-  "version": "0.1.0-next.0",
+  "version": "0.0.0-bootstrap.0",
   "description": "Portable Taobao search-result product-form research skill and CLI",
   "type": "module",
   "bin": {"taobao-search-form": "bin/taobao-search-form.mjs"},
