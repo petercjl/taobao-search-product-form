@@ -1,5 +1,4 @@
-import { createHash } from 'node:crypto';
-import { constants as fsConstants } from 'node:fs';
+import { createHash, randomUUID } from 'node:crypto';
 import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
@@ -10,6 +9,8 @@ const ROOT = fileURLToPath(new URL('..', import.meta.url));
 const NAME = 'taobao-search-product-form';
 const SOURCE = path.join(ROOT, 'skill', NAME);
 const MANIFEST = '.taobao-search-form-managed.json';
+const UI_META = '.install-meta.json';
+const DEFAULT_UI_META = { title: '淘宝搜索商品形态研究', description: '分析淘宝搜索商品形态与白牌选品机会' };
 const PACKAGE = JSON.parse(await fs.readFile(path.join(ROOT, 'package.json'), 'utf8'));
 
 export async function main(argv) {
@@ -80,7 +81,9 @@ export async function status(root) {
   }
   const manifest = await fs.readFile(path.join(destination, MANIFEST), 'utf8').then(JSON.parse).catch(() => null);
   const managed = manifest?.managedBy === PACKAGE.name && manifest?.skill === NAME;
-  return { ...base, state: !managed ? 'unmanaged' : (manifest.sourceDigest === sourceDigest ? 'current' : 'stale'), mode: 'copy', managed };
+  if (!managed) return { ...base, state: 'unmanaged', mode: 'copy', managed: false };
+  if (manifest.files && !(await filesMatch(destination, manifest.files))) return { ...base, state: 'modified', mode: 'copy', managed: true };
+  return { ...base, state: manifest.sourceDigest === sourceDigest ? 'current' : 'stale', mode: 'copy', managed: true };
 }
 
 export async function install(root, requestedMode = 'auto') {
@@ -94,33 +97,103 @@ export async function install(root, requestedMode = 'auto') {
   return { ...await status(root), action: 'installed' };
 }
 
-export async function update(root) {
+export async function update(root, options = {}) {
   const before = await status(root);
   if (before.state === 'current') return { ...before, action: 'unchanged' };
   if (before.state !== 'stale' || before.mode !== 'copy' || !before.managed) throw error('UNMANAGED_TARGET', `Refusing to update ${before.destination} (${before.state})`);
   const backupRoot = path.join(os.homedir(), '.local', 'state', NAME, 'skill-backups');
   await fs.mkdir(backupRoot, { recursive: true });
-  const backup = path.join(backupRoot, `${NAME}-${Date.now()}`);
+  const backup = path.join(backupRoot, `${NAME}-${Date.now()}-${randomUUID()}`);
   if (await lstatOrNull(backup)) throw error('TARGET_EXISTS', `Backup already exists: ${backup}`);
-  await fs.rename(before.destination, backup);
+  let strategy = 'rename';
+  if (!options.forceInPlace) {
+    try { await fs.rename(before.destination, backup); }
+    catch (cause) {
+      if (!['EPERM', 'EACCES', 'EBUSY'].includes(cause.code)) throw cause;
+      strategy = 'in-place';
+    }
+  } else strategy = 'in-place';
+  if (strategy === 'in-place') await fs.cp(before.destination, backup, { recursive: true, errorOnExist: true, force: false });
   try {
-    await managedCopy(before.destination);
+    if (strategy === 'rename') await managedCopy(before.destination);
+    else await syncManagedFiles(before.destination);
     const oldMeta = path.join(backup, '.install-meta.json');
     const newMeta = path.join(before.destination, '.install-meta.json');
-    if (await lstatOrNull(oldMeta) && !(await lstatOrNull(newMeta))) await fs.copyFile(oldMeta, newMeta, fsConstants.COPYFILE_EXCL);
+    if (await lstatOrNull(oldMeta)) await fs.copyFile(oldMeta, newMeta);
+    const after = await status(root);
+    if (after.state !== 'current') throw error('SKILL_SYNC_FAILED', `Skill verification failed (${after.state}); backup: ${backup}`);
+    return { ...after, action: 'updated', backup, updateStrategy: strategy };
   }
   catch (cause) {
-    if (await lstatOrNull(before.destination)) await fs.rm(before.destination, { recursive: true, force: true });
-    await fs.rename(backup, before.destination);
+    if (strategy === 'rename') {
+      if (await lstatOrNull(before.destination)) await fs.rm(before.destination, { recursive: true, force: true });
+      await fs.rename(backup, before.destination);
+    } else {
+      await restoreManagedFiles(backup, before.destination);
+    }
     throw cause;
   }
-  return { ...await status(root), action: 'updated', backup };
 }
 
 async function managedCopy(destination) {
   await fs.cp(SOURCE, destination, { recursive: true, errorOnExist: true, force: false });
-  const manifest = { managedBy: PACKAGE.name, skill: NAME, sourceDigest: await digest(SOURCE), installedAt: new Date().toISOString() };
+  await ensureUiMeta(destination);
+  const manifest = await makeManifest();
   await fs.writeFile(path.join(destination, MANIFEST), `${JSON.stringify(manifest, null, 2)}\n`, { flag: 'wx', mode: 0o600 });
+}
+
+async function syncManagedFiles(destination) {
+  const oldManifest = JSON.parse(await fs.readFile(path.join(destination, MANIFEST), 'utf8'));
+  const newFiles = await fileHashes(SOURCE);
+  for (const relative of Object.keys(oldManifest.files || {})) {
+    if (!(relative in newFiles)) await fs.rm(path.join(destination, relative), { force: true });
+  }
+  await fs.cp(SOURCE, destination, { recursive: true, force: true });
+  await ensureUiMeta(destination);
+  await fs.writeFile(path.join(destination, MANIFEST), `${JSON.stringify(await makeManifest(), null, 2)}\n`, { mode: 0o600 });
+}
+
+async function restoreManagedFiles(backup, destination) {
+  const currentManifest = await fs.readFile(path.join(destination, MANIFEST), 'utf8').then(JSON.parse).catch(() => null);
+  const oldManifest = JSON.parse(await fs.readFile(path.join(backup, MANIFEST), 'utf8'));
+  const currentFiles = { ...await fileHashes(SOURCE), ...(currentManifest?.files || {}) };
+  for (const relative of Object.keys(currentFiles)) {
+    if (!(relative in (oldManifest.files || {}))) await fs.rm(path.join(destination, relative), { force: true });
+  }
+  await fs.cp(backup, destination, { recursive: true, force: true });
+}
+
+async function ensureUiMeta(destination) {
+  const target = path.join(destination, UI_META);
+  if (!(await lstatOrNull(target))) await fs.writeFile(target, `${JSON.stringify(DEFAULT_UI_META, null, 2)}\n`, { flag: 'wx' });
+}
+
+async function makeManifest() {
+  return { managedBy: PACKAGE.name, skill: NAME, sourceDigest: await digest(SOURCE), files: await fileHashes(SOURCE), installedAt: new Date().toISOString() };
+}
+
+async function fileHashes(root) {
+  const files = {};
+  async function visit(dir) {
+    for (const entry of (await fs.readdir(dir, { withFileTypes: true })).sort((a, b) => a.name.localeCompare(b.name))) {
+      const absolute = path.join(dir, entry.name);
+      if (entry.isDirectory()) await visit(absolute);
+      else if (entry.isFile() && entry.name !== MANIFEST && entry.name !== UI_META) {
+        files[path.relative(root, absolute)] = createHash('sha256').update(await fs.readFile(absolute)).digest('hex');
+      }
+    }
+  }
+  await visit(root);
+  return files;
+}
+
+async function filesMatch(root, files) {
+  for (const [relative, expected] of Object.entries(files)) {
+    if (path.isAbsolute(relative) || relative.split(path.sep).includes('..')) return false;
+    const bytes = await fs.readFile(path.join(root, relative)).catch(() => null);
+    if (!bytes || createHash('sha256').update(bytes).digest('hex') !== expected) return false;
+  }
+  return true;
 }
 
 async function digest(root) {
@@ -142,22 +215,17 @@ async function digest(root) {
 async function doctor() {
   const python = await resolvePython();
   const probe = python ? probePython(python) : null;
-  const report = spawnSync(process.platform === 'win32' ? 'where.exe' : 'which', ['commerce-ui'], { encoding: 'utf8', timeout: 5000 });
-  const reportSkillCandidates = [
-    process.env.COMPACT_COMMERCE_UI_SKILL,
-    path.join(process.env.CODEX_HOME || path.join(os.homedir(), '.codex'), 'skills', 'compact-commerce-ui', 'SKILL.md'),
-    path.join(os.homedir(), '.agents', 'skills', 'compact-commerce-ui', 'SKILL.md'),
-    path.join(process.env.SEALSEEK_HOME || path.join(os.homedir(), '.sealseek'), 'workspace', 'skills', 'compact-commerce-ui', 'SKILL.md'),
-  ].filter(Boolean);
-  let reportSkill = null;
-  for (const candidate of reportSkillCandidates) if (await lstatOrNull(candidate)) { reportSkill = candidate; break; }
+  const reportRoot = path.join(SOURCE, 'report_runtime');
+  const reportFiles = ['renderer.py', 'validator.py', 'VERSION', path.join('templates', 'workbench.html')];
+  const missingReportFiles = [];
+  for (const relative of reportFiles) if (!(await lstatOrNull(path.join(reportRoot, relative)))) missingReportFiles.push(relative);
+  const reportVersion = missingReportFiles.length ? null : (await fs.readFile(path.join(reportRoot, 'VERSION'), 'utf8')).trim();
   const checks = [
     { id: 'node', ok: Number(process.versions.node.split('.')[0]) >= 20, value: process.version },
     { id: 'skill', ok: Boolean(await lstatOrNull(path.join(SOURCE, 'SKILL.md'))), value: SOURCE },
     { id: 'exceljs', ok: Boolean(await import('@excel.js/exceljs').catch(() => null)), value: '@excel.js/exceljs' },
     { id: 'python', ok: probe?.status === 0, value: probe?.status === 0 ? python : 'Python with pandas, numpy, openpyxl, Pillow and jieba unavailable' },
-    { id: 'report-skill', ok: Boolean(reportSkill), value: reportSkill || 'compact-commerce-ui Skill unavailable' },
-    { id: 'report-renderer', ok: report.status === 0, value: report.status === 0 ? report.stdout.trim().split(/\r?\n/)[0] : 'commerce-ui unavailable; HTML report stage requires compact-commerce-ui Skill and CLI' },
+    { id: 'report-runtime', ok: missingReportFiles.length === 0, value: missingReportFiles.length ? { missing: missingReportFiles } : { contract: 'compact-workbench@1.0', templateVersion: reportVersion, source: 'bundled' } },
   ];
   const result = { ok: checks.every(check => check.ok), version: PACKAGE.version, checks };
   print(result);
@@ -196,7 +264,7 @@ function runNpm(args, options) {
 
 async function runScript(name, args) {
   if (!/^[a-z][a-z0-9_]*\.(py|mjs)$/.test(name)) throw error('USAGE', 'Invalid script name');
-  const allowed = new Set(['clean_search_export.mjs', 'prepare.py', 'analyze.py', 'analyze_advertisers.py', 'analyze_geography.py', 'analyze_price_bands.py', 'analyze_title_roots.py', 'assemble_opportunity_evidence.py', 'build_report_viewmodel.py', 'build_visual_review_viewmodel.py', 'cluster_visual_forms.py', 'compile_style_prototypes.py', 'compile_visual_review.py', 'compile_visual_selection.py', 'validate_opportunity_cards.py', 'validate_report_viewmodel.py', 'visual_form_pipeline.py', 'visual_observation_batches.py', 'workflow_ledger.py']);
+  const allowed = new Set(['clean_search_export.mjs', 'prepare.py', 'analyze.py', 'analyze_advertisers.py', 'analyze_geography.py', 'analyze_price_bands.py', 'analyze_title_roots.py', 'assemble_opportunity_evidence.py', 'build_report_viewmodel.py', 'build_visual_review_viewmodel.py', 'cluster_visual_forms.py', 'compile_style_prototypes.py', 'compile_visual_review.py', 'compile_visual_selection.py', 'render_report.py', 'validate_opportunity_cards.py', 'validate_report_viewmodel.py', 'visual_form_pipeline.py', 'visual_observation_batches.py', 'workflow_ledger.py']);
   if (!allowed.has(name)) throw error('USAGE', 'Script not in published command set');
   const binary = name.endsWith('.py') ? await resolvePython() : process.execPath;
   if (!binary) throw error('RUNTIME_UNAVAILABLE', 'Python with required packages is unavailable; run doctor --json');
@@ -213,12 +281,16 @@ function print(value) { console.log(JSON.stringify(value, null, 2)); }
 async function resolvePython() {
   const configured = process.env.TAOBAO_SEARCH_PYTHON;
   if (configured) return configured;
-  const venv = path.join(os.homedir(), '.local', 'share', NAME, '.venv');
-  const candidates = process.platform === 'win32'
-    ? [path.join(venv, 'Scripts', 'python.exe'), 'py', 'python', 'python3']
-    : [path.join(venv, 'bin', 'python'), 'python3', 'python'];
+  const candidates = pythonCandidatesFor(process.platform, os.homedir(), process.env.SEALSEEK_HOME || path.join(os.homedir(), '.sealseek'));
   for (const candidate of candidates) if (probePython(candidate).status === 0) return candidate;
   return null;
+}
+
+export function pythonCandidatesFor(platform, userHome, sealseekHome) {
+  const venv = path.join(userHome, '.local', 'share', NAME, '.venv');
+  return platform === 'win32'
+    ? [path.join(sealseekHome, 'binaries', 'python', 'envs', 'default', 'Scripts', 'python.exe'), path.join(venv, 'Scripts', 'python.exe'), 'py', 'python', 'python3']
+    : [path.join(sealseekHome, 'binaries', 'python', 'envs', 'default', 'bin', 'python'), path.join(venv, 'bin', 'python'), 'python3', 'python'];
 }
 
 function probePython(binary) {

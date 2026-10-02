@@ -17,6 +17,9 @@
     "skill/taobao-search-product-form/adapters/*.json",
     "skill/taobao-search-product-form/references/**/*.md",
     "skill/taobao-search-product-form/references/**/*.json",
+    "skill/taobao-search-product-form/report_runtime/*.py",
+    "skill/taobao-search-product-form/report_runtime/VERSION",
+    "skill/taobao-search-product-form/report_runtime/templates/*.html",
     "skill/taobao-search-product-form/scripts/*.py",
     "skill/taobao-search-product-form/scripts/*.mjs"
   ],

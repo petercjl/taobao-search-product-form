@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Map three-axis visual evidence to compact-commerce-ui's live workbench contract.
+"""Map three-axis visual evidence to the pinned workbench contract.
 
-This script writes a ViewModel only; commerce-ui owns HTML rendering and QA.
+This script writes a ViewModel only; the bundled runtime owns HTML rendering and QA.
 """
 
 import argparse

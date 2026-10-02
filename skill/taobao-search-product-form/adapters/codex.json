@@ -71,7 +71,7 @@
     },
     {
       "capability_id": "product.image.inspect",
-      "implementation": {"kind": "agent-native", "discovery": "Use the host's advertised local-image viewing capability.", "execution": "Inspect prepared contact sheets and source images; write product-ID keyed visual labels with image-path evidence.", "normalization": "Persist the ledger schema documented in SKILL.md."},
+      "implementation": {"kind": "agent-native", "discovery": "Use the host's advertised local-image viewing capability.", "execution": "Inspect each prepared original image individually; use contact sheets for orientation and QA; write product-ID keyed visual labels with image-hash evidence.", "normalization": "Persist the ledger schema documented in SKILL.md."},
       "features": ["local_image_view", "source_image_zoom", "one_observation_per_image", "multi_facet_observation", "open_candidate_labels", "uncertainty_preservation"],
       "status": "tested",
       "tested_date": "2026-09-27",
@@ -129,11 +129,11 @@
     },
     {
       "capability_id": "product.report.html",
-      "implementation": {"kind": "nested-skill-and-stable-cli", "discovery": "Resolve exact compact-commerce-ui Skill from the current catalog and discover commerce-ui from PATH.", "execution": "Load the current compact-commerce-ui Skill, inspect the live template contract, build a ViewModel, render and validate with commerce-ui.", "normalization": "Return ViewModel and standalone HTML paths plus validation results."},
+      "implementation": {"kind": "bundled-script", "discovery": "Use taobao-search-form script render_report.py and the package's pinned report_runtime.", "execution": "Build and validate the ViewModel, then render and validate with the bundled report runtime.", "normalization": "Return ViewModel and standalone HTML paths plus validation results."},
       "features": ["versioned_viewmodel", "embedded_images", "structured_conclusions", "standalone_html", "validation"],
       "status": "implemented",
       "permissions": ["Local report write"],
-      "normalization": "Use commerce-ui JSON results and inspect the rendered artifact."
+      "normalization": "Use the bundled renderer's JSON result and inspect the rendered artifact."
     }
   ]
 }

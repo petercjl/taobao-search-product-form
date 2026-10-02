@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Assemble a comprehensive commerce-ui ViewModel from reviewed run artifacts.
+"""Assemble a comprehensive report ViewModel from reviewed run artifacts.
 
 This adapter transforms evidence and interpretation; HTML is rendered only by
-the installed commerce-ui template pack.
+the package's pinned report runtime.
 """
 
 from __future__ import annotations

@@ -136,7 +136,7 @@
     },
     {
       "id": "product.report.html",
-      "purpose": "Render and validate a standalone, evidence-linked HTML research report through the shared commerce UI capability",
+      "purpose": "Render and validate a standalone, evidence-linked HTML research report using the bundled pinned runtime",
       "required": false,
       "required_features": ["versioned_viewmodel", "embedded_images", "structured_conclusions", "standalone_html", "validation"],
       "input_fields": ["analysis", "visual_labels", "conclusions", "output_path"],

@@ -64,6 +64,7 @@ def plan(args):
         if not path.is_file() or not path.is_relative_to(source_root):
             raise ValueError(f"missing or escaping image path for product {pid}")
         items.append({"product_id": pid, "status": "ready", "image_path": str(path),
+                      "source_image_url": lookup[pid].get("image_url"),
                       "image_sha256": digest(path), "image_dhash": f"{dhash(path):016x}",
                       "source_rank": lookup[pid]["organic_rank"]})
     if len(ids) != len(set(ids)):
@@ -97,6 +98,8 @@ def plan(args):
         sheet.save(out / sheet_name, "JPEG", quality=90)
         batches[-1]["contact_sheet"] = str(out / sheet_name)
     plan_doc = {"schema_version": 1, "strategy": "visual-form-open-v1",
+                "semantic_inspection_unit": "original_product_image",
+                "contact_sheet_role": "orientation_and_coverage_audit",
                 "source_manifest": str(manifest_path), "source_manifest_sha256": digest(manifest_path),
                 "population": "natural", "scope": {"selected": len(ids), "ready": len(ready),
                 "image_unavailable": len(ids) - len(ready), "manifest_natural_total": manifest["scope"]["organic_total"]},
@@ -219,7 +222,7 @@ def main():
     planning.add_argument("--output-dir", required=True)
     planning.add_argument("--population", default="natural")
     planning.add_argument("--limit", type=int)
-    planning.add_argument("--batch-size", type=int, default=12)
+    planning.add_argument("--batch-size", type=int, default=10)
     binding = commands.add_parser("bind")
     binding.add_argument("--plan", required=True)
     binding.add_argument("--draft", required=True)
