@@ -2,7 +2,7 @@
   "schema": "portable-skill-capabilities",
   "schema_version": "1.0.0",
   "skill": "taobao-search-product-form",
-  "target_platforms": ["codex"],
+  "target_platforms": ["codex", "sealseek"],
   "capabilities": [
     {
       "id": "product.workflow.ledger",

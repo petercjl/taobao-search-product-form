@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import { constants as fsConstants } from 'node:fs';
 import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
@@ -36,8 +37,8 @@ function printHelp() {
   capabilities --json
   doctor --json
   skill source --json
-  skill status|install|update (--agent codex | --target-dir DIR) [--mode auto|link|copy]
-  update check|install [--yes]
+  skill status|install|update (--agent codex|sealseek | --target-dir DIR) [--mode auto|link|copy]
+  update check|install [--yes] [--agent codex|sealseek | --target-dir DIR]
   script NAME [script arguments...]
 The Skill's business workflow is in its SKILL.md. No external service is modified by this CLI.`);
 }
@@ -57,10 +58,11 @@ function parseOptions(args) {
 }
 
 function targetRoot(opts) {
-  if (Boolean(opts.agent) === Boolean(opts.targetDir)) throw error('USAGE', 'Specify exactly one of --agent codex or --target-dir DIR');
+  if (Boolean(opts.agent) === Boolean(opts.targetDir)) throw error('USAGE', 'Specify exactly one of --agent codex|sealseek or --target-dir DIR');
   if (opts.agent) {
-    if (opts.agent !== 'codex') throw error('PLATFORM_UNTESTED', 'Only the Codex adapter is supported by this preview');
-    return path.join(process.env.CODEX_HOME || path.join(os.homedir(), '.codex'), 'skills');
+    if (opts.agent === 'codex') return path.join(process.env.CODEX_HOME || path.join(os.homedir(), '.codex'), 'skills');
+    if (opts.agent === 'sealseek') return path.join(process.env.SEALSEEK_HOME || path.join(os.homedir(), '.sealseek'), 'workspace', 'skills');
+    throw error('PLATFORM_UNTESTED', `Unknown Agent: ${opts.agent}`);
   }
   return path.resolve(opts.targetDir);
 }
@@ -101,8 +103,17 @@ export async function update(root) {
   const backup = path.join(backupRoot, `${NAME}-${Date.now()}`);
   if (await lstatOrNull(backup)) throw error('TARGET_EXISTS', `Backup already exists: ${backup}`);
   await fs.rename(before.destination, backup);
-  try { await managedCopy(before.destination); }
-  catch (cause) { if (!(await lstatOrNull(before.destination))) await fs.rename(backup, before.destination); throw cause; }
+  try {
+    await managedCopy(before.destination);
+    const oldMeta = path.join(backup, '.install-meta.json');
+    const newMeta = path.join(before.destination, '.install-meta.json');
+    if (await lstatOrNull(oldMeta) && !(await lstatOrNull(newMeta))) await fs.copyFile(oldMeta, newMeta, fsConstants.COPYFILE_EXCL);
+  }
+  catch (cause) {
+    if (await lstatOrNull(before.destination)) await fs.rm(before.destination, { recursive: true, force: true });
+    await fs.rename(backup, before.destination);
+    throw cause;
+  }
   return { ...await status(root), action: 'updated', backup };
 }
 
@@ -130,12 +141,23 @@ async function digest(root) {
 
 async function doctor() {
   const python = await resolvePython();
-  const probe = spawnSync(python, ['-c', 'import pandas,numpy,openpyxl,PIL,jieba; print("ok")'], { encoding: 'utf8', timeout: 15000 });
+  const probe = python ? probePython(python) : null;
+  const report = spawnSync(process.platform === 'win32' ? 'where.exe' : 'which', ['commerce-ui'], { encoding: 'utf8', timeout: 5000 });
+  const reportSkillCandidates = [
+    process.env.COMPACT_COMMERCE_UI_SKILL,
+    path.join(process.env.CODEX_HOME || path.join(os.homedir(), '.codex'), 'skills', 'compact-commerce-ui', 'SKILL.md'),
+    path.join(os.homedir(), '.agents', 'skills', 'compact-commerce-ui', 'SKILL.md'),
+    path.join(process.env.SEALSEEK_HOME || path.join(os.homedir(), '.sealseek'), 'workspace', 'skills', 'compact-commerce-ui', 'SKILL.md'),
+  ].filter(Boolean);
+  let reportSkill = null;
+  for (const candidate of reportSkillCandidates) if (await lstatOrNull(candidate)) { reportSkill = candidate; break; }
   const checks = [
     { id: 'node', ok: Number(process.versions.node.split('.')[0]) >= 20, value: process.version },
     { id: 'skill', ok: Boolean(await lstatOrNull(path.join(SOURCE, 'SKILL.md'))), value: SOURCE },
     { id: 'exceljs', ok: Boolean(await import('@excel.js/exceljs').catch(() => null)), value: '@excel.js/exceljs' },
-    { id: 'python', ok: probe.status === 0, value: probe.status === 0 ? python : (probe.error?.message || probe.stderr?.trim() || 'missing Python dependencies') },
+    { id: 'python', ok: probe?.status === 0, value: probe?.status === 0 ? python : 'Python with pandas, numpy, openpyxl, Pillow and jieba unavailable' },
+    { id: 'report-skill', ok: Boolean(reportSkill), value: reportSkill || 'compact-commerce-ui Skill unavailable' },
+    { id: 'report-renderer', ok: report.status === 0, value: report.status === 0 ? report.stdout.trim().split(/\r?\n/)[0] : 'commerce-ui unavailable; HTML report stage requires compact-commerce-ui Skill and CLI' },
   ];
   const result = { ok: checks.every(check => check.ok), version: PACKAGE.version, checks };
   print(result);
@@ -143,17 +165,33 @@ async function doctor() {
 }
 
 function updateCheck() {
-  const result = spawnSync('npm', ['view', PACKAGE.name, 'dist-tags.next', '--json'], { encoding: 'utf8', timeout: 20000 });
+  const tag = PACKAGE.publishConfig.tag || 'latest';
+  const result = runNpm(['view', PACKAGE.name, `dist-tags.${tag}`, '--json'], { encoding: 'utf8', timeout: 20000 });
   if (result.error || result.status !== 0) throw error('REGISTRY_UNAVAILABLE', result.error?.message || result.stderr?.trim() || 'npm view failed');
-  const latest = JSON.parse(result.stdout.trim() || 'null');
-  print({ package: PACKAGE.name, installed: PACKAGE.version, next: latest, updateAvailable: Boolean(latest && latest !== PACKAGE.version) });
+  const availableVersion = JSON.parse(result.stdout.trim() || 'null');
+  print({ package: PACKAGE.name, installed: PACKAGE.version, tag, availableVersion, updateAvailable: Boolean(availableVersion && availableVersion !== PACKAGE.version) });
 }
 
-function updateInstall(opts) {
-  if (!opts.yes) throw error('CONFIRMATION_REQUIRED', 'Pass --yes to install the npm next version');
-  const result = spawnSync('npm', ['install', '--global', `${PACKAGE.name}@next`], { stdio: 'inherit' });
-  if (result.error) throw error('INSTALL_FAILED', result.error.message);
-  process.exitCode = result.status ?? 1;
+async function updateInstall(opts) {
+  if (!opts.yes) throw error('CONFIRMATION_REQUIRED', 'Pass --yes to install the npm package update');
+  const root = targetRoot(opts);
+  const before = await status(root);
+  if (!before.managed) throw error('UNMANAGED_TARGET', `Refusing to update ${before.destination} (${before.state})`);
+  const tag = PACKAGE.publishConfig.tag || 'latest';
+  const installed = runNpm(['install', '--global', `${PACKAGE.name}@${tag}`], { encoding: 'utf8', timeout: 180000 });
+  if (installed.error || installed.status !== 0) throw error('INSTALL_FAILED', installed.error?.message || installed.stderr?.trim() || 'npm install failed');
+  const npmRoot = runNpm(['root', '--global'], { encoding: 'utf8', timeout: 20000 });
+  if (npmRoot.error || npmRoot.status !== 0) throw error('INSTALL_FAILED', npmRoot.error?.message || npmRoot.stderr?.trim() || 'npm root failed');
+  const freshBin = path.join(npmRoot.stdout.trim(), ...PACKAGE.name.split('/'), 'bin', 'taobao-search-form.mjs');
+  const updated = spawnSync(process.execPath, [freshBin, 'skill', 'update', '--target-dir', root], { encoding: 'utf8', timeout: 30000 });
+  if (updated.error || updated.status !== 0) throw error('SKILL_SYNC_FAILED', updated.error?.message || updated.stderr?.trim() || 'Skill sync failed');
+  const version = spawnSync(process.execPath, [freshBin, 'version'], { encoding: 'utf8', timeout: 5000 });
+  if (version.error || version.status !== 0) throw error('INSTALL_FAILED', 'Updated CLI version check failed');
+  print({ package: PACKAGE.name, tag, skill: JSON.parse(updated.stdout), version: version.stdout.trim() });
+}
+
+function runNpm(args, options) {
+  return spawnSync(process.platform === 'win32' ? 'npm.cmd' : 'npm', args, { ...options, shell: process.platform === 'win32' });
 }
 
 async function runScript(name, args) {
@@ -161,8 +199,9 @@ async function runScript(name, args) {
   const allowed = new Set(['clean_search_export.mjs', 'prepare.py', 'analyze.py', 'analyze_advertisers.py', 'analyze_geography.py', 'analyze_price_bands.py', 'analyze_title_roots.py', 'assemble_opportunity_evidence.py', 'build_report_viewmodel.py', 'build_visual_review_viewmodel.py', 'cluster_visual_forms.py', 'compile_style_prototypes.py', 'compile_visual_review.py', 'compile_visual_selection.py', 'validate_opportunity_cards.py', 'validate_report_viewmodel.py', 'visual_form_pipeline.py', 'visual_observation_batches.py', 'workflow_ledger.py']);
   if (!allowed.has(name)) throw error('USAGE', 'Script not in published command set');
   const binary = name.endsWith('.py') ? await resolvePython() : process.execPath;
+  if (!binary) throw error('RUNTIME_UNAVAILABLE', 'Python with required packages is unavailable; run doctor --json');
   const scriptPath = path.join(SOURCE, 'scripts', name);
-  const result = spawnSync(binary, [scriptPath, ...args], { stdio: 'inherit' });
+  const result = spawnSync(binary, binary === 'py' ? ['-3', scriptPath, ...args] : [scriptPath, ...args], { stdio: 'inherit' });
   if (result.error) throw error('RUNTIME_UNAVAILABLE', result.error.message);
   process.exitCode = result.status ?? 1;
 }
@@ -172,7 +211,17 @@ function error(code, message) { return Object.assign(new Error(message), { code 
 function print(value) { console.log(JSON.stringify(value, null, 2)); }
 
 async function resolvePython() {
-  if (process.env.TAOBAO_SEARCH_PYTHON) return process.env.TAOBAO_SEARCH_PYTHON;
-  const managed = path.join(os.homedir(), '.local', 'share', NAME, '.venv', 'bin', 'python');
-  return await lstatOrNull(managed) ? managed : 'python3';
+  const configured = process.env.TAOBAO_SEARCH_PYTHON;
+  if (configured) return configured;
+  const venv = path.join(os.homedir(), '.local', 'share', NAME, '.venv');
+  const candidates = process.platform === 'win32'
+    ? [path.join(venv, 'Scripts', 'python.exe'), 'py', 'python', 'python3']
+    : [path.join(venv, 'bin', 'python'), 'python3', 'python'];
+  for (const candidate of candidates) if (probePython(candidate).status === 0) return candidate;
+  return null;
+}
+
+function probePython(binary) {
+  const args = binary === 'py' ? ['-3', '-c', 'import pandas,numpy,openpyxl,PIL,jieba'] : ['-c', 'import pandas,numpy,openpyxl,PIL,jieba'];
+  return spawnSync(binary, args, { encoding: 'utf8', timeout: 15000 });
 }

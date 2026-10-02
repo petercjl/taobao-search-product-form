@@ -1,0 +1,24 @@
+{
+  "schema": "portable-skill-adapter",
+  "schema_version": "1.0.0",
+  "platform": "sealseek",
+  "tested_targets": [],
+  "discovery": "Run taobao-search-form skill source --json to locate the bundled Skill, then skill status|install|update --agent sealseek for its managed installation.",
+  "runtime": "Use taobao-search-form doctor --json to check Python imports and the separately installed commerce-ui renderer. The host must provide image inspection for visual classification.",
+  "mappings": [
+    {"capability_id":"product.workflow.ledger","implementation":{"kind":"bundled-script"},"features":["new_ledger_only","stage_state_record","existing_artifact_verification","recoverable_update"],"status":"implemented"},
+    {"capability_id":"product.search.clean","implementation":{"kind":"bundled-cli-script"},"features":["xlsx_read","first_natural_id_only","all_ad_appearances","source_order_preserved","xlsx_write","new_output_only"],"status":"implemented"},
+    {"capability_id":"product.search.advertiser-analysis","implementation":{"kind":"bundled-script"},"features":["xlsx_read","three_grains","product_id_natural_join","exact_shop_name_join","natural_payment_traction","shop_product_layout","configurable_price_bands","json_detail_export","new_output_only"],"status":"implemented"},
+    {"capability_id":"product.search.title-roots","implementation":{"kind":"bundled-script"},"features":["xlsx_read","natural_only","protected_phrase_segmentation","project_lexicon_merge","run_lexicon_snapshot","candidate_review_queue","product_root_evidence","root_shop_price_payment_statistics","new_output_only"],"status":"implemented"},
+    {"capability_id":"product.search.geography","implementation":{"kind":"bundled-script"},"features":["xlsx_read","natural_product_grain","shop_address_grain","address_normalization","optional_title_root_hash_join","regional_price_payment_statistics","advertising_appearance_separation","json_detail_and_summary","new_output_only"],"status":"implemented"},
+    {"capability_id":"product.search.price-bands","implementation":{"kind":"bundled-script"},"features":["xlsx_read","all_natural_products","log_price_jenks","sample_selected_band_count","bootstrap_stability","advertising_context_separate","json_detail_and_summary","new_output_only"],"status":"implemented"},
+    {"capability_id":"product.search.prepare","implementation":{"kind":"bundled-script"},"features":["xlsx_read","product_id_deduplication","placement_preservation","safe_image_fetch","new_output_only"],"status":"implemented"},
+    {"capability_id":"product.image.inspect","implementation":{"kind":"agent-native"},"features":[],"status":"unresolved"},
+    {"capability_id":"product.image.plan-reduce","implementation":{"kind":"bundled-script"},"features":["image_hash_provenance","disjoint_batches","contact_sheet_export","observation_binding","one_record_per_product_validation","versioned_alias_registry","unresolved_label_reporting","new_output_only"],"status":"implemented"},
+    {"capability_id":"product.image.three-axis-compile","implementation":{"kind":"bundled-script"},"features":["three_independent_axes","image_hash_provenance","product_side_delta","audience_evidence_tier","open_candidate_labels","versioned_alias_registry","unresolved_label_reporting","one_record_per_product_validation","new_output_only"],"status":"implemented"},
+    {"capability_id":"product.image.parallel-observe","implementation":{"kind":"agent-native"},"features":[],"status":"unresolved"},
+    {"capability_id":"product.opportunity.evidence-join","implementation":{"kind":"bundled-script"},"features":["source_hash_reconciliation","natural_product_id_join","uncertainty_preservation","advertising_grain_separation","merchant_line_context","overlapping_candidate_groups","new_output_only"],"status":"implemented"},
+    {"capability_id":"product.opportunity.card-validate","implementation":{"kind":"bundled-script"},"features":["required_card_fields","candidate_reference_resolution","member_product_reference","research_order_uniqueness","no_composite_entry_score"],"status":"implemented"},
+    {"capability_id":"product.report.html","implementation":{"kind":"nested-skill-and-stable-cli"},"features":[],"status":"unresolved"}
+  ]
+}

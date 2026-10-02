@@ -35,6 +35,40 @@ test('installer never replaces an unmanaged target', async () => {
   } finally { await fs.rm(temp, { recursive: true, force: true }); }
 });
 
+test('SealSeek target uses its managed workspace and keeps UI metadata on copy update', async () => {
+  const temp = await fs.mkdtemp(path.join(os.tmpdir(), 'taobao-search-form-agent-'));
+  let backup;
+  try {
+    const env = { ...process.env, SEALSEEK_HOME: temp };
+    const installRun = spawnSync(process.execPath, [bin, 'skill', 'install', '--agent', 'sealseek', '--mode', 'copy'], { encoding: 'utf8', env });
+    assert.equal(installRun.status, 0, installRun.stderr);
+    const target = path.join(temp, 'workspace', 'skills', 'taobao-search-product-form');
+    assert.equal((await fs.stat(path.join(target, 'SKILL.md'))).isFile(), true);
+    await fs.writeFile(path.join(target, '.install-meta.json'), '{"displayName":"淘宝搜索选品"}\n');
+    const manifestPath = path.join(target, '.taobao-search-form-managed.json');
+    const manifest = JSON.parse(await fs.readFile(manifestPath, 'utf8'));
+    manifest.sourceDigest = 'previous-package-digest';
+    await fs.writeFile(manifestPath, JSON.stringify(manifest));
+    const updated = await update(path.join(temp, 'workspace', 'skills'));
+    backup = updated.backup;
+    assert.equal(updated.state, 'current');
+    assert.equal(JSON.parse(await fs.readFile(path.join(target, '.install-meta.json'), 'utf8')).displayName, '淘宝搜索选品');
+    assert.equal((await fs.stat(updated.backup)).isDirectory(), true);
+  } finally {
+    await fs.rm(temp, { recursive: true, force: true });
+    if (backup) await fs.rm(backup, { recursive: true, force: true });
+  }
+});
+
+test('doctor returns structured checks for Python and HTML renderer', () => {
+  const run = spawnSync(process.execPath, [bin, 'doctor', '--json'], { encoding: 'utf8' });
+  const result = JSON.parse(run.stdout);
+  assert.equal(typeof result.ok, 'boolean');
+  assert.ok(result.checks.some(check => check.id === 'python'));
+  assert.ok(result.checks.some(check => check.id === 'report-skill'));
+  assert.ok(result.checks.some(check => check.id === 'report-renderer'));
+});
+
 test('cleaning keeps the first natural ID and all ad records', async () => {
   const temp = await fs.mkdtemp(path.join(os.tmpdir(), 'taobao-search-form-xlsx-'));
   try {
