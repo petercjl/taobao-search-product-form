@@ -1,6 +1,6 @@
 {
   "name": "@petercjl/taobao-search-product-form",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Portable Taobao search-result product-form research skill and CLI",
   "type": "module",
   "bin": {
