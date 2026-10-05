@@ -13,7 +13,7 @@
     },
     {
       "capability_id": "product.search.clean",
-      "implementation": {"kind": "bundled-cli-script", "discovery": "Resolve the installed taobao-search-form CLI and run doctor --json; its npm dependency supplies ExcelJS.", "execution": "Run taobao-search-form script clean_search_export.mjs SOURCE.xlsx OUTPUT.xlsx; inspect its JSON counts and compare both saved sheets with the source.", "normalization": "Return the two sheet names, cleaned workbook path, and source/retained/excluded row counts."},
+      "implementation": {"kind": "bundled-cli-script", "discovery": "Resolve the installed taobao-search-form CLI and run doctor --node product-research --json; its npm dependency supplies ExcelJS.", "execution": "Run taobao-search-form script clean_search_export.mjs SOURCE.xlsx OUTPUT.xlsx; inspect its JSON counts and compare both saved sheets with the source.", "normalization": "Return the two sheet names, cleaned workbook path, and source/retained/excluded row counts."},
       "features": ["xlsx_read", "first_natural_id_only", "all_ad_appearances", "source_order_preserved", "xlsx_write", "new_output_only"],
       "status": "tested",
       "tested_date": "2026-10-01",
